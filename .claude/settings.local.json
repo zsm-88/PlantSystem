@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout *)",
+      "Bash(git push *)",
+      "Bash(mv 网页/web/* .)",
+      "Bash(mv 网页/image/* .)",
+      "Bash(rm -rf 网页/)",
+      "Bash(git add *)"
+    ]
+  }
+}
