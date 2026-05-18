@@ -124,7 +124,7 @@ function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const requestedPath = decodeURIComponent(url.pathname);
   const relativePath = requestedPath === '/' ? 'index.html' : requestedPath.slice(1);
-  const staticRoot = relativePath.startsWith('image/') ? path.resolve(__dirname, '..') : __dirname;
+  const staticRoot = __dirname;
   const filePath = path.resolve(staticRoot, relativePath);
 
   if (!filePath.startsWith(staticRoot)) {
