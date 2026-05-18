@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>智能植物养护系统</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(180deg, #e8f5e9 0%, #f1f8e9 50%, #fff8e1 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      min-height: 100vh;
+      padding: 20px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* ===== 标题气泡 ===== */
+    .title-bubble {
+      width: 100%;
+      background: linear-gradient(135deg, #66bb6a, #43a047);
+      border-radius: 30px;
+      padding: 32px 24px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 20px rgba(67, 160, 71, 0.35);
+    }
+
+    .title-text { display: flex; flex-direction: column; gap: 6px; }
+    .title-text .line1 { font-size: 20px; font-weight: 700; color: #fff; }
+    .title-text .line2 { font-size: 13px; color: rgba(255,255,255,0.9); }
+    .title-icon { width: 80px; height: 68px; object-fit: contain; flex-shrink: 0; }
+
+    /* ===== 功能气泡网格 ===== */
+    .bubble-grid {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .bubble {
+      background: #fff;
+      border-radius: 22px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      padding: 18px 12px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      flex: 1 1 calc(50% - 7px);
+      min-height: 200px;
+      transition: transform 0.15s, box-shadow 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bubble:active { transform: scale(0.97); }
+
+    .bubble-pump {
+      flex: 1 1 100%;
+      flex-direction: row;
+      justify-content: space-around;
+      min-height: auto;
+      padding: 18px 24px;
+    }
+
+    .bubble-icon {
+      width: 72px; height: 72px; object-fit: contain; margin-bottom: 8px;
+    }
+    .bubble-pump .bubble-icon { margin-bottom: 0; }
+
+    .bubble-info { text-align: center; }
+    .bubble-pump .bubble-info { text-align: left; }
+
+    .bubble-label { font-size: 15px; color: #558b2f; font-weight: 500; margin-bottom: 4px; }
+    .bubble-value { font-size: 26px; font-weight: 700; transition: color 0.4s; }
+
+    /* ===== 数值颜色 ===== */
+    .val-normal { color: #2e7d32; }
+    .val-warning { color: #f57f17; }
+    .val-danger { color: #d32f2f; }
+    .val-cold { color: #1565c0; }
+
+    /* ===== 值变化时的闪烁动画 ===== */
+    @keyframes flash-update {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    .bubble-value.flash { animation: flash-update 0.35s ease; }
+
+    /* ===== Toggle Switch ===== */
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 6px;
+      gap: 8px;
+    }
+    .bubble-pump .toggle-wrap { margin-top: 0; }
+
+    .toggle {
+      position: relative;
+      width: 52px; height: 28px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+      position: absolute; inset: 0;
+      background: #ccc;
+      border-radius: 28px;
+      transition: background 0.25s;
+    }
+    .toggle .slider::before {
+      content: "";
+      position: absolute; left: 3px; top: 3px;
+      width: 22px; height: 22px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.25s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .toggle input:checked + .slider { background: #43a047; }
+    .toggle input:checked + .slider::before { transform: translateX(24px); }
+
+    .toggle.sending { opacity: 0.5; pointer-events: none; }
+
+    /* ===== 设备状态指示灯 ===== */
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #bbb;
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    .status-dot.on { background: #43a047; }
+    .status-dot.off { background: #bbb; }
+    .status-dot.error { background: #e53935; }
+
+    /* ===== Toast ===== */
+    .toast {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%) scale(0.85);
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 15px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+
+    /* ===== 状态栏 ===== */
+    .status-bar {
+      width: 100%;
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #999;
+      gap: 8px;
+    }
+    .status-bar .left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .status-bar .ok { color: #43a047; }
+    .status-bar .warn { color: #f57f17; }
+    .status-bar .error { color: #e53935; }
+
+    .btn-refresh {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-refresh:hover { border-color: #66bb6a; color: #43a047; }
+    .btn-refresh:active { transform: scale(0.95); }
+    .btn-refresh.spinning svg { animation: spin 0.6s linear; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-auto {
+      background: none;
+      border: 1px solid #66bb6a;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      color: #2e7d32;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-auto:hover { background: #f1f8e9; }
+    .btn-auto:active { transform: scale(0.95); }
+    .btn-auto.sending { opacity: 0.55; pointer-events: none; }
+
+    .btn-settings {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #999;
+      padding: 4px;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .btn-settings:hover { color: #555; }
+
+    /* ===== 设置弹窗 ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+    .modal {
+      background: #fff;
+      border-radius: 24px;
+      padding: 28px 24px;
+      width: 90%;
+      max-width: 380px;
+      max-height: 80vh;
+      overflow-y: auto;
+      transform: scale(0.9);
+      transition: transform 0.25s;
+    }
+    .modal-overlay.open .modal { transform: scale(1); }
+
+    .modal h2 {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .modal .field { margin-bottom: 14px; }
+    .modal .field label {
+      display: block;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .modal .field input, .modal .field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #333;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .modal .field input:focus, .modal .field textarea:focus { border-color: #66bb6a; }
+    .modal .field textarea { resize: vertical; min-height: 44px; }
+
+    .modal .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+    .modal .btn-row button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .modal .btn-row button:active { opacity: 0.7; }
+    .modal .btn-cancel { background: #f5f5f5; color: #666; }
+    .modal .btn-save { background: #43a047; color: #fff; }
+
+    /* ===== 加载骨架屏 ===== */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(232,245,233,0.85);
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s;
+      border-radius: 22px;
+    }
+    .bubble.loading .loading-overlay { opacity: 1; }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #43a047;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @media (min-width: 500px) { .bubble { min-height: 180px; } }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="title-bubble">
+    <div class="title-text">
+      <span class="line1">用心养护，静待花开</span>
+      <span class="line2">你的植物小伙伴正在健康成长</span>
+    </div>
+    <img class="title-icon" src="../image/帆船.png" alt="帆船">
+  </div>
+
+  <div class="bubble-grid" id="bubbleGrid">
+    <!-- 温度 -->
+    <div class="bubble loading" data-key="temp">
+      <div class="loading-overlay"><div class="spinner"></div></div>
+      <img class="bubble-icon" src="../image/Temp.png" alt="温度">
+      <div class="bubble-info">
+        <div class="bubble-label">🌡️ 环境温度</div>
+        <div class="bubble-value val-normal" id="val-temp"><span class="skeleton" style="display:inline-block;width:60px;height:28px"></span>℃</div>
+      </div>
+    </div>
+
+    <!-- 土壤湿度 -->
+    <div class="bubble loading" data-key="hum">
+      <div class="loading-overlay"><div class="spinner"></div></div>
+      <img class="bubble-icon" src="../image/Hum.png" alt="湿度">
+      <div class="bubble-info">
+        <div class="bubble-label">💧 土壤湿度</div>
+        <div class="bubble-value val-normal" id="val-hum"><span class="skeleton" style="display:inline-block;width:60px;height:28px"></span>%</div>
+      </div>
+    </div>
+
+    <!-- 空气湿度 -->
+    <div class="bubble loading" data-key="airhum">
+      <div class="loading-overlay"><div class="spinner"></div></div>
+      <img class="bubble-icon" src="../image/air-humidity.svg" alt="空气湿度">
+      <div class="bubble-info">
+        <div class="bubble-label">🌊 空气湿度</div>
+        <div class="bubble-value val-normal" id="val-airhum"><span class="skeleton" style="display:inline-block;width:60px;height:28px"></span>%</div>
+      </div>
+    </div>
+
+    <!-- 光照 -->
+    <div class="bubble loading" data-key="light">
+      <div class="loading-overlay"><div class="spinner"></div></div>
+      <img class="bubble-icon" src="../image/light-intensity.svg" alt="光照">
+      <div class="bubble-info">
+        <div class="bubble-label">☀️ 光照强度</div>
+        <div class="bubble-value val-normal" id="val-light"><span class="skeleton" style="display:inline-block;width:60px;height:28px"></span> lux</div>
+      </div>
+    </div>
+
+    <!-- 风扇 -->
+    <div class="bubble" data-key="fan">
+      <img class="bubble-icon" src="../image/fan.svg" alt="风扇">
+      <div class="bubble-info">
+        <div class="bubble-label">🌀 通风风扇</div>
+      </div>
+      <div class="toggle-wrap">
+        <span class="status-dot" id="dot-fan"></span>
+        <label class="toggle" id="toggle-fan">
+          <input type="checkbox">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 补光灯 -->
+    <div class="bubble" data-key="led">
+      <img class="bubble-icon" src="../image/LED.png" alt="补光灯">
+      <div class="bubble-info">
+        <div class="bubble-label">💡 植物补光灯</div>
+      </div>
+      <div class="toggle-wrap">
+        <span class="status-dot" id="dot-led"></span>
+        <label class="toggle" id="toggle-led">
+          <input type="checkbox">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 水泵 -->
+    <div class="bubble bubble-pump" data-key="pump">
+      <img class="bubble-icon" src="../image/pump.svg" alt="水泵">
+      <div class="bubble-info">
+        <div class="bubble-label">💦 灌溉水泵</div>
+      </div>
+      <div class="toggle-wrap">
+        <span class="status-dot" id="dot-pump"></span>
+        <label class="toggle" id="toggle-pump">
+          <input type="checkbox">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="left">
+      <span id="status-time">---</span>
+      <span id="status-msg"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="btn-auto" id="btnAutoMode" title="恢复自动模式">恢复自动</button>
+      <button class="btn-refresh" id="btnRefresh" title="手动刷新（或按 R 键）">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        刷新
+      </button>
+      <button class="btn-settings" id="btnSettings" title="设置">⚙️</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 设置弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>⚙️ 连接设置</h2>
+    <div class="field">
+      <label>产品 ID</label>
+      <input type="text" id="cfg-pid" placeholder="产品 ID">
+    </div>
+    <div class="field">
+      <label>设备名称</label>
+      <input type="text" id="cfg-dname" placeholder="设备名称">
+    </div>
+    <div class="field">
+      <label>设备密钥 (access_key)</label>
+      <textarea id="cfg-key" rows="2" placeholder="设备密钥"></textarea>
+    </div>
+    <div class="field">
+      <label style="line-height:1.6;color:#999;">
+        当前默认使用浏览器直连 OneNET。只有在你改成使用本地 <code>/api/...</code> 代理时，才可以不填写 access_key。
+      </label>
+    </div>
+    <div class="field">
+      <label>GET 数据接口 URL</label>
+      <input type="url" id="cfg-geturl" placeholder="查询设备属性的 API">
+    </div>
+    <div class="field">
+      <label>SET 控制接口 URL</label>
+      <input type="url" id="cfg-seturl" placeholder="设置设备属性的 API">
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" id="btnModalCancel">取消</button>
+      <button class="btn-save" id="btnModalSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ====== OneNET token 生成 ======
+  async function generateToken(accessKey, res, et, method) {
+    const version = '2018-10-31';
+    method = method || 'sha1';
+    et = et || String(Math.floor(Date.now() / 1000) + 2 * 60 * 60);
+
+    // StringForSignature = et + "\n" + method + "\n" + res + "\n" + version
+    const org = et + '\n' + method + '\n' + res + '\n' + version;
+
+    // key = base64_decode(accessKey)
+    const keyBytes = Uint8Array.from(atob(accessKey), c => c.charCodeAt(0));
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyBytes,
+      { name: 'HMAC', hash: 'SHA-1' },
+      false,
+      ['sign']
+    );
+    const sigBuffer = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(org));
+    const sigBytes = new Uint8Array(sigBuffer);
+    const sign = btoa(String.fromCharCode(...sigBytes));
+
+    return 'version=' + version +
+      '&res=' + encodeURIComponent(res) +
+      '&et=' + et +
+      '&method=' + method +
+      '&sign=' + encodeURIComponent(sign);
+  }
+
+  // HMAC-MD5 实现
+  function hmacMd5(key, msg) {
+    const blockSize = 64;
+    if (key.length > blockSize) {
+      key = md5(key);
+    }
+    if (key.length < blockSize) {
+      const k = new Uint8Array(blockSize);
+      k.set(key);
+      key = k;
+    }
+    const iPad = new Uint8Array(blockSize);
+    const oPad = new Uint8Array(blockSize);
+    for (let i = 0; i < blockSize; i++) {
+      iPad[i] = key[i] ^ 0x36;
+      oPad[i] = key[i] ^ 0x5c;
+    }
+    const inner = new Uint8Array(iPad.length + msg.length);
+    inner.set(iPad);
+    inner.set(msg, iPad.length);
+    const innerHash = md5(inner);
+    const outer = new Uint8Array(oPad.length + innerHash.length);
+    outer.set(oPad);
+    outer.set(innerHash, oPad.length);
+    return md5(outer);
+  }
+
+  // MD5 实现 (输入/输出都是 Uint8Array)
+  function md5(data) {
+    // 补位
+    const origLen = data.length;
+    const bitLen = origLen * 8;
+    let padded = new Uint8Array(((origLen + 8 + 64) & ~63) + 64);
+    padded.set(data);
+    padded[origLen] = 0x80;
+    const view = new DataView(padded.buffer);
+    view.setUint32(padded.length - 8, bitLen >>> 32, true);
+    view.setUint32(padded.length - 4, bitLen & 0xffffffff, true);
+
+    // MD5 初始值
+    let a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+
+    const K = new Int32Array([
+      0xd76aa478,0xe8c7b756,0x242070db,0xc1bdceee,0xf57c0faf,0x4787c62a,0xa8304613,0xfd469501,
+      0x698098d8,0x8b44f7af,0xffff5bb1,0x895cd7be,0x6b901122,0xfd987193,0xa679438e,0x49b40821,
+      0xf61e2562,0xc040b340,0x265e5a51,0xe9b6c7aa,0xd62f105d,0x02441453,0xd8a1e681,0xe7d3fbc8,
+      0x21e1cde6,0xc33707d6,0xf4d50d87,0x455a14ed,0xa9e3e905,0xfcefa3f8,0x676f02d9,0x8d2a4c8a,
+      0xfffa3942,0x8771f681,0x6d9d6122,0xfde5380c,0xa4beea44,0x4bdecfa9,0xf6bb4b60,0xbebfbc70,
+      0x289b7ec6,0xeaa127fa,0xd4ef3085,0x04881d05,0xd9d4d039,0xe6db99e5,0x1fa27cf8,0xc4ac5665,
+      0xf4292244,0x432aff97,0xab9423a7,0xfc93a039,0x655b59c3,0x8f0ccc92,0xffeff47d,0x85845dd1,
+      0x6fa87e4f,0xfe2ce6e0,0xa3014314,0x4e0811a1,0xf7537e82,0xbd3af235,0x2ad7d2bb,0xeb86d391
+    ]);
+
+    const S = new Uint8Array([
+      7,12,17,22, 7,12,17,22, 7,12,17,22, 7,12,17,22,
+      5, 9,14,20, 5, 9,14,20, 5, 9,14,20, 5, 9,14,20,
+      4,11,16,23, 4,11,16,23, 4,11,16,23, 4,11,16,23,
+      6,10,15,21, 6,10,15,21, 6,10,15,21, 6,10,15,21
+    ]);
+
+    function F(b, c, d) { return (b & c) | (~b & d); }
+    function G(b, c, d) { return (b & d) | (c & ~d); }
+    function H(b, c, d) { return b ^ c ^ d; }
+    function I(b, c, d) { return c ^ (b | ~d); }
+
+    function rotl(x, n) { return (x << n) | (x >>> (32 - n)); }
+
+    for (let offset = 0; offset < padded.length; offset += 64) {
+      const M = new Int32Array(16);
+      for (let i = 0; i < 16; i++) {
+        M[i] = view.getInt32(offset + i * 4, true);
+      }
+
+      let A = a0, B = b0, C = c0, D = d0;
+
+      for (let i = 0; i < 64; i++) {
+        let g, f;
+        if (i < 16) { f = F(B, C, D); g = i; }
+        else if (i < 32) { f = G(B, C, D); g = (5 * i + 1) % 16; }
+        else if (i < 48) { f = H(B, C, D); g = (3 * i + 5) % 16; }
+        else { f = I(B, C, D); g = (7 * i) % 16; }
+
+        const temp = D;
+        D = C;
+        C = B;
+        B = B + rotl(A + f + K[i] + M[g], S[i]) | 0;
+        A = temp;
+      }
+
+      a0 = a0 + A | 0;
+      b0 = b0 + B | 0;
+      c0 = c0 + C | 0;
+      d0 = d0 + D | 0;
+    }
+
+    const result = new Uint8Array(16);
+    const rv = new DataView(result.buffer);
+    rv.setInt32(0, a0, true);
+    rv.setInt32(4, b0, true);
+    rv.setInt32(8, c0, true);
+    rv.setInt32(12, d0, true);
+    return result;
+  }
+
+  // ====== 默认配置 ======
+  const STORAGE_KEY = 'plant_config';
+  const DEFAULT_CONFIG = {
+    product_id: '8AV8W3KkCb',
+    device_name: 'plant',
+    access_key: 'jcv3Q+eNRx9NZS3z5YeD4T954VHvUX8vCTlp75HZA50=',
+    getinfo_url: 'https://iot-api.heclouds.com/thingmodel/query-device-property',
+    setinfo_url: 'https://iot-api.heclouds.com/thingmodel/set-device-property',
+  };
+
+  function loadConfig() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const config = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+        if (!config.getinfo_url || config.getinfo_url.startsWith('/api/')) {
+          config.getinfo_url = DEFAULT_CONFIG.getinfo_url;
+        }
+        if (!config.setinfo_url || config.setinfo_url.startsWith('/api/')) {
+          config.setinfo_url = DEFAULT_CONFIG.setinfo_url;
+        }
+        if (!config.access_key) {
+          config.access_key = DEFAULT_CONFIG.access_key;
+        }
+        return config;
+      }
+    } catch (_) {}
+    return { ...DEFAULT_CONFIG };
+  }
+
+  let CONFIG = loadConfig();
+
+  // ====== 属性标识符映射 ======
+  // OneNET 上定义的属性名 → 对应的 identifier
+  const ID_MAP = {
+    temperature: { key: 'temp', label: '环境温度', unit: '℃' },
+    soil_humidity: { key: 'hum', label: '土壤湿度', unit: '%' },
+    air_humidity: { key: 'airhum', label: '空气湿度', unit: '%' },
+    lighting_intensity: { key: 'light', label: '光照强度', unit: ' lux' },
+    fan: { key: 'fan', label: '通风风扇', unit: '' },
+    LED: { key: 'led', label: '植物补光灯', unit: '' },
+    bump: { key: 'pump', label: '灌溉水泵', unit: '' },
+  };
+
+  // ====== DOM ======
+  const $ = id => document.getElementById(id);
+  const $$ = sel => document.querySelectorAll(sel);
+  const valTemp = $('val-temp');
+  const valHum = $('val-hum');
+  const valAirHum = $('val-airhum');
+  const valLight = $('val-light');
+  const statusTime = $('status-time');
+  const statusMsg = $('status-msg');
+  const toastEl = $('toast');
+  const btnRefresh = $('btnRefresh');
+  const btnAutoMode = $('btnAutoMode');
+  const controlBindings = {
+    fan: { toggleId: 'toggle-fan', dotId: 'dot-fan' },
+    LED: { toggleId: 'toggle-led', dotId: 'dot-led' },
+    bump: { toggleId: 'toggle-pump', dotId: 'dot-pump' },
+  };
+
+  // ====== 颜色分级 ======
+  function colorCode(el, v, rules) {
+    for (const r of rules) {
+      if (v >= r.min && v <= r.max) {
+        el.className = 'bubble-value ' + r.cls;
+        return;
+      }
+    }
+    el.className = 'bubble-value val-normal';
+  }
+
+  function applyColors() {
+    const t = parseFloat(valTemp.textContent);
+    const h = parseFloat(valHum.textContent);
+    const a = parseFloat(valAirHum.textContent);
+    const l = parseFloat(valLight.textContent);
+    if (!isNaN(t)) colorCode(valTemp, t, [
+      { min: -99, max: 5, cls: 'val-cold' },
+      { min: 5, max: 28, cls: 'val-normal' },
+      { min: 28, max: 35, cls: 'val-warning' },
+      { min: 35, max: 99, cls: 'val-danger' },
+    ]);
+    if (!isNaN(h)) colorCode(valHum, h, [
+      { min: -99, max: 20, cls: 'val-danger' },
+      { min: 20, max: 35, cls: 'val-warning' },
+      { min: 35, max: 80, cls: 'val-normal' },
+      { min: 80, max: 99, cls: 'val-cold' },
+    ]);
+    if (!isNaN(a)) colorCode(valAirHum, a, [
+      { min: -99, max: 20, cls: 'val-danger' },
+      { min: 20, max: 30, cls: 'val-warning' },
+      { min: 30, max: 70, cls: 'val-normal' },
+      { min: 70, max: 99, cls: 'val-warning' },
+    ]);
+    if (!isNaN(l)) colorCode(valLight, l, [
+      { min: -99, max: 500, cls: 'val-warning' },
+      { min: 500, max: 99999, cls: 'val-normal' },
+    ]);
+  }
+
+  // ====== 闪烁提示 ======
+  function flash(el) {
+    el.classList.remove('flash');
+    void el.offsetWidth;
+    el.classList.add('flash');
+  }
+
+  // ====== Toast ======
+  let toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1200);
+  }
+
+  // ====== 加载状态 ======
+  let hasLoadedOnce = false;
+  function setLoading(loading) {
+    $$('.bubble[data-key="temp"],.bubble[data-key="hum"],.bubble[data-key="airhum"],.bubble[data-key="light"]')
+      .forEach(el => el.classList.toggle('loading', loading));
+  }
+
+  // ====== 获取 Token ======
+  async function getToken() {
+    if (!CONFIG.access_key) {
+      throw new Error('直连 OneNET 需要在设置中填写 access_key');
+    }
+    const res = 'products/' + CONFIG.product_id;
+    return generateToken(CONFIG.access_key, res);
+  }
+
+  function isLocalApi(url) {
+    return url.startsWith('/api/');
+  }
+
+  async function buildHeaders(url, extra) {
+    const headers = { ...(extra || {}) };
+    if (!isLocalApi(url)) {
+      headers.authorization = await getToken();
+    }
+    return headers;
+  }
+
+  function toBool(value) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === 'true' || normalized === '1' || normalized === 'on';
+    }
+    return false;
+  }
+
+  function normalizePropertyList(result) {
+    const candidates = [];
+    if (Array.isArray(result?.data)) candidates.push(result.data);
+    if (Array.isArray(result?.data?.list)) candidates.push(result.data.list);
+    if (Array.isArray(result?.data?.properties)) candidates.push(result.data.properties);
+    if (Array.isArray(result?.properties)) candidates.push(result.properties);
+
+    for (const items of candidates) {
+      if (items.length) return items;
+    }
+    return [];
+  }
+
+  function getPropertyValue(item) {
+    if (item == null) return undefined;
+    if (Object.prototype.hasOwnProperty.call(item, 'value')) return item.value;
+    if (Object.prototype.hasOwnProperty.call(item, 'val')) return item.val;
+    if (Object.prototype.hasOwnProperty.call(item, 'current_value')) return item.current_value;
+    if (Object.prototype.hasOwnProperty.call(item, 'last_value')) return item.last_value;
+    return undefined;
+  }
+
+  function getPropertyTime(item) {
+    if (item == null) return undefined;
+    return item.time ?? item.ts ?? item.updated_at ?? item.last_time;
+  }
+
+  function setControlVisual(identifier, checked, pending) {
+    const binding = controlBindings[identifier];
+    if (!binding) return;
+
+    const toggleEl = $(binding.toggleId);
+    const dotEl = $(binding.dotId);
+    const input = toggleEl.querySelector('input');
+
+    input.checked = checked;
+    dotEl.className = 'status-dot ' + (checked ? 'on' : 'off');
+    toggleEl.classList.toggle('sending', Boolean(pending));
+    input.disabled = Boolean(pending);
+  }
+
+  function parsePropertyTime(value) {
+    if (value === undefined || value === null || value === '') return null;
+
+    if (typeof value === 'number') {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    if (typeof value === 'string') {
+      const numeric = Number(value);
+      if (!Number.isNaN(numeric) && value.trim() !== '') {
+        const dateFromNumber = new Date(numeric);
+        if (!Number.isNaN(dateFromNumber.getTime())) return dateFromNumber;
+      }
+
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    return null;
+  }
+
+  function updateDeviceStatus(times) {
+    const latest = times
+      .map(parsePropertyTime)
+      .filter(Boolean)
+      .sort((a, b) => b - a)[0];
+
+    if (!latest) {
+      statusTime.textContent = '🕐 无上报时间';
+      statusMsg.textContent = '⚠️ 无法判断在线状态';
+      statusMsg.className = 'warn';
+      return;
+    }
+
+    const ageMs = Date.now() - latest.getTime();
+    statusTime.textContent = '🕐 数据时间 ' + latest.toLocaleTimeString('zh-CN', { hour12: false });
+
+    if (ageMs <= 15000) {
+      statusMsg.textContent = '✅ 设备在线';
+      statusMsg.className = 'ok';
+    } else if (ageMs <= 60000) {
+      statusMsg.textContent = '⚠️ 数据延迟';
+      statusMsg.className = 'warn';
+    } else {
+      statusMsg.textContent = '❌ 设备离线或数据过期';
+      statusMsg.className = 'error';
+    }
+  }
+
+  // ====== 获取数据 ======
+  async function fetchData() {
+    try {
+      const url = CONFIG.getinfo_url +
+        '?product_id=' + encodeURIComponent(CONFIG.product_id) +
+        '&device_name=' + encodeURIComponent(CONFIG.device_name);
+
+      const resp = await fetch(url, {
+        headers: await buildHeaders(CONFIG.getinfo_url),
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+      const result = await resp.json();
+      if (result.code !== 0) throw new Error(result.msg);
+
+      const props = normalizePropertyList(result);
+
+      // 按 identifier 匹配数据
+      let values = {};
+      let times = [];
+      props.forEach(item => {
+        const key = item.identifier || item.id || item.name || item.code;
+        if (key) {
+          values[key] = getPropertyValue(item);
+        }
+        times.push(getPropertyTime(item));
+      });
+
+      const updateEl = (el, val, unit) => {
+        const str = val !== undefined && val !== null ? (typeof val === 'number' ? Number(val).toFixed(1) : val) : '--';
+        const display = str + (unit || '');
+        if (el.textContent !== display) {
+          el.textContent = display;
+          flash(el.parentElement);
+        }
+      };
+
+      updateEl(valTemp, values.temperature, '℃');
+      updateEl(valHum, values.soil_humidity, '%');
+      updateEl(valAirHum, values.air_humidity, '%');
+      updateEl(valLight, values.lighting_intensity, ' lux');
+
+      // 更新设备状态指示灯（如果有开关状态）
+      if (values.fan !== undefined) {
+        const checked = toBool(values.fan);
+        setControlVisual('fan', checked, false);
+      }
+      if (values.LED !== undefined) {
+        const checked = toBool(values.LED);
+        setControlVisual('LED', checked, false);
+      }
+      if (values.bump !== undefined) {
+        const checked = toBool(values.bump);
+        setControlVisual('bump', checked, false);
+      }
+
+      applyColors();
+      updateDeviceStatus(times);
+
+      if (!hasLoadedOnce) {
+        hasLoadedOnce = true;
+        setLoading(false);
+      }
+    } catch (err) {
+      statusMsg.textContent = '⚠️ ' + err.message;
+      statusMsg.className = 'error';
+      if (!hasLoadedOnce) {
+        hasLoadedOnce = true;
+        setLoading(false);
+        ['val-temp','val-hum','val-airhum','val-light'].forEach(id => {
+          document.getElementById(id).textContent = '--';
+        });
+      }
+    }
+  }
+
+  async function refreshAfterDelay(delayMs) {
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+    return fetchData();
+  }
+
+  // ====== 发送控制指令 ======
+  async function sendCommand(identifier, value, toggleEl, dotEl, previousValue) {
+    if (toggleEl) {
+      setControlVisual(identifier, value, true);
+      showToast('⏳ 命令已发送，等待设备确认');
+    }
+
+    try {
+      const resp = await fetch(CONFIG.setinfo_url, {
+        method: 'POST',
+        headers: await buildHeaders(CONFIG.setinfo_url, {
+          'content-type': 'application/json',
+        }),
+        body: JSON.stringify({
+          product_id: CONFIG.product_id,
+          device_name: CONFIG.device_name,
+          params: { [identifier]: value },
+        }),
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const result = await resp.json();
+      if (result.code !== 0) throw new Error(result.msg);
+      showToast('✅ 命令已提交，正在同步状态');
+      await refreshAfterDelay(800);
+    } catch (err) {
+      if (toggleEl) {
+        const message = String(err && err.message ? err.message : err);
+        if (message.includes('timeout') || message.includes('超时')) {
+          showToast('⚠️ 响应超时，正在重新读取状态');
+          try {
+            await refreshAfterDelay(1200);
+          } catch (_) {
+            setControlVisual(identifier, previousValue, false);
+            if (dotEl) dotEl.className = 'status-dot error';
+          }
+        } else {
+          setControlVisual(identifier, previousValue, false);
+          if (dotEl) dotEl.className = 'status-dot error';
+          showToast('❌ 操作失败: ' + message);
+        }
+      } else {
+        showToast('❌ 操作失败: ' + err.message);
+      }
+    } finally {
+      if (toggleEl) {
+        toggleEl.classList.remove('sending');
+        toggleEl.querySelector('input').disabled = false;
+      }
+    }
+  }
+
+  // ====== 控制事件绑定 ======
+  function bindToggle(id, identifier) {
+    const toggleEl = $('toggle-' + id);
+    const dotEl = $('dot-' + id);
+    const input = toggleEl.querySelector('input');
+    input.addEventListener('change', () => {
+      const targetValue = input.checked;
+      const previousValue = !targetValue;
+      sendCommand(identifier, targetValue, toggleEl, dotEl, previousValue);
+    });
+  }
+  bindToggle('fan', 'fan');
+  bindToggle('led', 'LED');
+  bindToggle('pump', 'bump');
+
+  // ====== 手动刷新 ======
+  btnRefresh.addEventListener('click', () => {
+    btnRefresh.classList.add('spinning');
+    fetchData().finally(() => {
+      setTimeout(() => btnRefresh.classList.remove('spinning'), 600);
+    });
+  });
+
+  btnAutoMode.addEventListener('click', () => {
+    btnAutoMode.classList.add('sending');
+    sendCommand('auto_mode', true, null, null).finally(() => {
+      btnAutoMode.classList.remove('sending');
+    });
+  });
+
+  // ====== 设置弹窗 ======
+  const modalOverlay = $('modalOverlay');
+  const cfgPid = $('cfg-pid');
+  const cfgDname = $('cfg-dname');
+  const cfgKey = $('cfg-key');
+  const cfgGetUrl = $('cfg-geturl');
+  const cfgSetUrl = $('cfg-seturl');
+
+  function openModal() {
+    cfgPid.value = CONFIG.product_id;
+    cfgDname.value = CONFIG.device_name;
+    cfgKey.value = CONFIG.access_key;
+    cfgGetUrl.value = CONFIG.getinfo_url;
+    cfgSetUrl.value = CONFIG.setinfo_url;
+    modalOverlay.classList.add('open');
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove('open');
+  }
+
+  $('btnSettings').addEventListener('click', openModal);
+  $('btnModalCancel').addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', e => {
+    if (e.target === modalOverlay) closeModal();
+  });
+
+  $('btnModalSave').addEventListener('click', () => {
+    CONFIG.product_id = cfgPid.value.trim();
+    CONFIG.device_name = cfgDname.value.trim();
+    CONFIG.access_key = cfgKey.value.trim();
+    CONFIG.getinfo_url = cfgGetUrl.value.trim();
+    CONFIG.setinfo_url = cfgSetUrl.value.trim();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(CONFIG));
+    } catch (_) {}
+    closeModal();
+    showToast('✅ 配置已保存');
+    fetchData();
+  });
+
+  // ====== 键盘快捷键 ======
+  document.addEventListener('keydown', e => {
+    if ((e.key === 'r' || e.key === 'R') && !modalOverlay.classList.contains('open')) {
+      btnRefresh.click();
+    }
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // ====== 启动 ======
+  fetchData();
+  setInterval(fetchData, 5000);
+
+  setTimeout(() => {
+    if (!hasLoadedOnce) {
+      hasLoadedOnce = true;
+      setLoading(false);
+      ['val-temp','val-hum','val-airhum','val-light'].forEach(id => {
+        document.getElementById(id).textContent = '--';
+      });
+    }
+  }, 8000);
+</script>
+</body>
+</html>
