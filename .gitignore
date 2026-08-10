@@ -1,0 +1,28 @@
+# Build outputs
+*.o
+*.d
+*.crf
+*.bak
+*.axf
+*.hex
+*.map
+*.lnp
+*.htm
+*.lst
+*.sct
+*.dep
+
+# IDE/editor
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Node
+node_modules/
